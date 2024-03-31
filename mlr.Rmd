@@ -1,0 +1,81 @@
+---
+title: "mlr"
+output: html_document
+date: "2024-03-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r mlr, echo=FALSE}
+wd <- "C:/Users/fabia/Documents/Uni/Big Data Bowl 2024"
+setwd(wd)
+data <- read.csv("filtered_md_rg.csv")
+
+library(MASS)
+library(car)
+library(GGally)
+library(ggcorrplot)
+
+#first model with all covariates
+model1 <- lm(distobcatfc ~ sballcarrier + aballcarrier+ stackler + atackler + dirballcarrier + dirtackler + dirdiff + weightdiff + heighttackler + weighttackler -1,  data = data)
+data$position <- as.factor(data$position)
+summary(model1)
+
+#backward selection with AIC
+stepAIC(model1, direction="backward")
+
+#second model
+model2 <- lm(distobcatfc ~ sballcarrier + stackler + atackler + weightdiff + heighttackler -1,  data = data)
+summary(model2)
+#MSE
+mean(model2$residuals^2)
+
+#Untersuchung auf Kollinearität
+reduced_data <- data[c("distobcatfc", "sballcarrier", "stackler", "atackler", "weightdiff", "heighttackler")]
+
+corr_matrix = round(cor(reduced_data), 2)
+
+ggcorrplot(corr_matrix, hc.order = TRUE, type = "lower",
+          lab = TRUE)
+
+#omitting stackler from model
+model_final <- lm(distobcatfc ~ sballcarrier + atackler + weightdiff + heighttackler -1,  data = data)
+summary(model_final)
+
+#checking normality assumption
+x <- seq(min(model_final$residuals),max(model_final$residuals), 0.0001)
+hist(model_final$residuals, breaks = 75, xlab="Model residuals", main="Residual distribution", freq=FALSE)
+d2 <- density(model_final$residuals)
+lines(d2$x, d2$y)
+lines(x, dnorm(x, mean(model_final$residuals), sd(model_final$residuals)), col="red")
+
+# Plot the residuals
+qqnorm(model_final$residuals, ylim = c(-2,2))
+# Plot the Q-Q line
+qqline(model_final$residuals)
+
+#checking for heteroscedasticity
+plot(fitted(model_final), residuals(model_final), ylim=c(-2,2), xlab = "Fitted values", ylab = "Residuals")
+abline(h=0, col="red")
+
+#Untersuchung auf Kollinearität
+reduced_data <- data[c("distobcatfc", "stackler", "atackler", "weightdiff", "heighttackler")]
+
+corr_matrix = round(cor(reduced_data), 2)
+
+ggcorrplot(corr_matrix, hc.order = TRUE, type = "lower",
+          lab = TRUE)
+
+#added variable plot
+avPlots(model_final)
+
+#holding the other covariates fixed it seems that sballcarrier, atackler and weightdiff
+#can also be omiited, since they contribute no much additional information.
+
+
+#Final Model MSE
+mean(model_final$residuals^2)
+```
